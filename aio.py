@@ -8,6 +8,9 @@ import numpy as np
 from scipy.linalg import sqrtm, inv
 from scipy.cluster.vq import kmeans, vq
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import KFold
+from sklearn.svm import LinearSVC
+from sklearn.metrics import accuracy_score
 
 def gen_target_transform(target_data):
     return sqrtm(np.cov(target_data, rowvar=False) + np.eye(target_data.shape[1]))
@@ -54,6 +57,7 @@ valid_path =  'C:/Users/Sam/Documents/monkey_pipeline/data/validation/validation
 #Requires two arguments to work: label for the monkey species and k for k-shot learning
 target_species = 'n0'
 k = 5
+cross_validation_splits = 5
 
 #
 train_files = []
@@ -88,7 +92,7 @@ scaler = StandardScaler().fit(features)
 features=scaler.transform(features)
 
 #important
-trg_transform = gen_target_transform(features)
+trg_transform = gen_target_transform(features).astype(float)
 
 train_labels = [1] * len(features)
 train_data = features
@@ -97,13 +101,17 @@ train_data = features
 #This should probably be the end of the first function.
 # Requirements of next part: target class name, vocab, recorrelation matrix 
 
-orb = cv2.ORB_create()
-
 new_train_data, new_labels = load(training_path, target_species, vocab, include_target=False, transfer_dom=True, trg_transform=trg_transform)
 train_labels += new_labels
+train_labels = np.array(train_labels)
 train_data=np.vstack((train_data, new_train_data))
 train_data = train_data.astype(float)
-#all data should now be transformed into the same domain. Last step is to load the test set and train a classifier
 
-test_data, test_labels = load(valid_path, target_species, vocab, include_target=True, transfer_dom=False)
-print(done)
+#all data should now be transformed into the same domain. Last step is to load the test set and train a classifier
+valid_data, valid_labels = load(valid_path, target_species, vocab, include_target=True, transfer_dom=False)
+classifier = LinearSVC(max_iter=80000)
+classifier.fit(train_data, train_labels)
+valid_predictions = classifier.predict(valid_data)
+print('RESULTS:, valid_acc=' + str(accuracy_score(valid_predictions, valid_labels)))
+
+print('done')
